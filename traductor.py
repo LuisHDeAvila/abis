@@ -2,7 +2,7 @@ import numpy as np
 import math
 import re
 import pandas as pd
-import bs4 import BeautifulSoup
+import bs4 as BeautifulSoup
 
 import tensorflow as tf
 from tensorflow.keras import layers
