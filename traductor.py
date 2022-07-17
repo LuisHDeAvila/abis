@@ -69,8 +69,6 @@ train_inputs = np.delete(data_inputs, test_idx, axis=0)
 train_labels = np.delete(data_labels, test_idx)
 
 # Red neuronal
-
-
 class DCNN(tf.keras.Model):
 
   def __init__(self,
@@ -147,5 +145,17 @@ Dcnn = DCNN(vocab_size=VOCAB_SIZE,
             nb_classes=NB_CLASSES,
             dropout_rate=DROPOUT_RATE)
 
+if NB_CLASSES == 2:
+  Dcnn.compile(loss="binary_crossentropy",
+          optimizer="adam", metrics=["accuracy"])
+else:
+  Dcnn.compile(loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["sparse_categorical_accuracy"])
 
+# Checkpoints
+checkpoint_path = "ckpt/"
+ckpt = tf.train.Checkpoint(Dcnn=Dcnn)
+ckpt_manager = tf.train.Checkpoint(ckpt, checkpoint_path, max_to_keep=5)
+
+if ckpt_manager.lates_checkpoint:
+  
 
