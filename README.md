@@ -9,5 +9,8 @@
   ./traductor.py
 ```
 
-## About
-Model: sec2sec Model
+## Model
+sec2sec Model
+
+## Data set
+http://cs.standford.edu/people/alecmgo/trainingandtestdata.zip
