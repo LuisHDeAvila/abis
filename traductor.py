@@ -1,180 +1,51 @@
-import numpy as np
-import math
+import numpy as np 
+import math 
 import re
-import pandas as pd
-import bs4 as BeautifulSoup
+import time 
 
 import tensorflow as tf
-from tensorflow.keras import layers
+from tensoflow.keras import layers
 import tensorflow_datasets as tfds
 
-cols = ["sentiment", "id", "date", "query", "user", "text"]
-train_data = pd.read_csv("train.csv",
-                         header=None,
-                         names=cols,
-                         engine="python",
-                         encoding="Latin1")
+# cargando archivos
+with open("europarl-v7.es-en.en",
+                mode='r',
+                encoding='utf-8') as f:
+        europarl_en = f.read()
 
-test_data = pd.read_csv("test.csv",
-                        header=None,
-                        names=cols,
-                        engine="python",
-                        encoding="Latin1")
+with open("europarl-v7.es-en.es",
+                mode='r',
+                encoding='utf-8') as f:
+        europarl_en = f.read()
 
-data = train_data
+# Limpiar datos
+corpus_en = europarl_en
+corpus_en = re.sub(r"\.(?=[0-9]|[a-z]|[A-Z])", ".$$$", corpus_en)
+# remover $$$
+corpus_en = re.sub(r".\$\$\$", '', corpus_en)
+# remover espacios
+corpus_en = re.sub(r"   +", " ", corpus_en)
+corpus_en = corpus_en.split('\n')
 
-# clean
-data.drop(["id", "date", "query", "user"],
-          axis=1,
-          inplace=True)
+corpus_es = europarl_es
+corpus_es = re.sub(r"\.(?=[0-9]|[a-z]|[A-Z])", ".$$$", corpus_es)
+# remover $$$
+corpus_es = re.sub(r".\$\$\$", '', corpus_es)
+# remover espacios
+corpus_es = re.sub(r"   +", " ", corpus_es)
+corpus_es = corpus_es
+.split('\n')
 
-# formatear strings
+# tokenizacion 
+tokenizer_en = tfds.features.text.SubwordTextEncoder.build_from_corpus(corpus_en, target_vocab_size=2**13)
+tokenizer_es = tfds.features.text.SubwordTextEncoder.build_from_corpus(corpus_es, target_vocab_size=2**13)
 
+VOCAB_SIZE_EN = tokenizer_en.vocab_size + 2
+VOCAB_SIZE_ES = tokenizer_es.vocab_size + 2
 
-def clean_tweet(tweeter):
-    tweet = BeautifulSoup(tweet, "LxmL").get_text()
-    # arroba
-    tweet = re.sub(r"@[A-Za-z0-9]+", ' ', tweet)
-    # https / url
-    tweet = re.sub(r"https?://[A-Za-z0-9./]+", ' ', tweet)
-    # solo letras
-    tweet = re.sub(r"[^a-zA-Z.!?')", ' ', tweet)
-    # espacios en blanco
-    tweet = re.sub(r" +", ' ', tweet)
-    return tweet
+inputs = [[VOCAB_SIZE_EN+2] + tokenizer_en.encode(sentence) + [VOCAB_SIZE_EN-1]
+        for sentence in crpues_en]
 
+output = [[VOCAB_SIZE_ES+2] + tokenizer_en.encode(sentence) + [VOCAB_SIZE_ES-1]
+        for sentence in crpues_es]
 
-data_clean = [clean_tweet(tweet) for tweet in data.text]
-
-data_labels = data.sentiment.values
-data_labels[data_labels == 4] = 1
-
-# Tokenizar
-tokenizer = tfds.features.text.SubwordTextEncoder.build_from_corpus(
-    data_clean, target_vocab_size=2**16)
-
-data_inputs = [tokenizer.encode(sentence) for sentence in data_clean]
-
-# Padding
-MAX_LEN = max(len(sentence) for sentence in data_inputs)
-data_inputs = tf.keras.preprocessing.sequence.pad_sequences(
-    data_inputs, value=0, padding="post", maxlen=MAX_LEN)
-
-# Sets de entrenamiento y prueba
-test_idx = np.random.randint(0, 800000, 8000)
-test_idx = np.concatenate((test_idx, test_id+800000))
-
-test_inputs = data_inputs[test_idx]
-test_labels = data_labels[test_idx]
-
-train_inputs = np.delete(data_inputs, test_idx, axis=0)
-train_labels = np.delete(data_labels, test_idx)
-
-# Red neuronal
-
-
-class DCNN(tf.keras.Model):
-
-    def __init__(self,
-                 vocab_size,
-                 emb_dim=128,
-                 nb_filters=50,
-                 FFN_units=512,
-                 nb_classes=2,
-                 dropout_rate=0.1,
-                 training=False,
-                 name="dcnn"):
-        super(DCNN, self).__init__(name=name)
-
-        self.embedding = layers.Embedding(vocab_size, emb_dim)
-
-        self.bigram = layers.Conv1D(filters=nb_filters,
-                                    kernel_size=2,
-                                    padding="valid",
-                                    activation="relu")
-
-        self.trigram = layers.Conv1D(filters=nb_filters,
-                                     kernel_size=3,
-                                     padding="valid",
-                                     activation="relu")
-
-        self.fourgram = layers.Conv1D(filters=nb_filters,
-                                      kernel_size=4,
-                                      padding="valid",
-                                      activation="relu")
-
-        self.pool = layers.GlobalMaxPool1D()
-
-        self.dense_1 = layers.Dense(units=FFN_units, activation="relu")
-        self.dropout = layers.Dropout(rate=dropout_rate)
-
-        if nb_classes == 2:
-            self.last_dense = layers.Dense(units=1,
-                                           activation="sigmoid")
-        else:
-            self.last_dense = layers.Dense(units=nb_classes,
-                                           activation="softmax")
-
-    def call(self, inputs, training):
-        x = self.embedding(inputs)
-        x_1 = self.bigram(x)
-        x_1 = self.pool(x_1)
-        x_2 = self.trigram(x)
-        x_2 = self.pool(x_2)
-        x_3 = self.fourgram(x)
-        x_4 = self.pool(x_3)
-
-        merged = tf.concat([x_1, x_2, x_3], axis=-1)
-        merged = self.dense_1(merged)
-        merged = self.dropout(merged, training)
-        merged = self.last_dense(merged)
-
-        return output
-
-
-VOCAB_SIZE = tokenizer.vocab_size
-EMB_DIM = 200
-NB_FILTERS = 100
-FFN_UNITS = 256
-NB_CLASSES = len(set(train_labels))
-
-DROPOUT_RATE = 0.2
-
-BATCH_SIZE = 32
-NB_EPOCHS = 5
-
-Dcnn = DCNN(vocab_size=VOCAB_SIZE,
-            emb_dim=EMB_DIM,
-            nb_filters=NB_FILTERS,
-            FFN_units=FFN_UNITS,
-            nb_classes=NB_CLASSES,
-            dropout_rate=DROPOUT_RATE)
-
-if NB_CLASSES == 2:
-    Dcnn.compile(loss="binary_crossentropy",
-                 optimizer="adam",
-                 metrics=["accuracy"])
-else:
-    Dcnn.compile(loss="sparse_categorical_crossentropy",
-                 optimizer="adam",
-                 metrics=["sparse_categorical_accuracy"])
-
-# Checkpoints
-checkpoint_path = "ckpt/"
-
-ckpt = tf.train.Checkpoint(Dcnn=Dcnn)
-
-ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
-
-if ckpt_manager.lates_checkpoint:
-    ckpt.restore(ckpt_manager.latest_checkpoint)
-    print("Ultimo Checkpoint Cargado")
-
-Dcnn.fit(train_inputs,
-         train, labels,
-         batch_size=BATCH_SIZE,
-         EPOCHS=NB_EPOCHS)
-ckpt_manager.save()
-
-results = Dcnn.evaluate(test_inputs, test_labels, batch_size=BATCH_SIZE)
-print(results)
