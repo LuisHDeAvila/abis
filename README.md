@@ -13,4 +13,6 @@
 sec2sec Model
 
 ## Data set
-http://cs.standford.edu/people/alecmgo/trainingandtestdata.zip
+```bash
+  wget http://cs.stanford.edu/people/alecmgo/trainingandtestdata.zip
+```
