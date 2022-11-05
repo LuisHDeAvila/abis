@@ -1,5 +1,5 @@
-import numpy as np 
-import math 
+import numpy as np
+import math
 import re
 import time 
 
@@ -33,8 +33,7 @@ corpus_es = re.sub(r"\.(?=[0-9]|[a-z]|[A-Z])", ".$$$", corpus_es)
 corpus_es = re.sub(r".\$\$\$", '', corpus_es)
 # remover espacios
 corpus_es = re.sub(r"   +", " ", corpus_es)
-corpus_es = corpus_es
-.split('\n')
+corpus_es = corpus_es.split('\n')
 
 # tokenizacion 
 tokenizer_en = tfds.features.text.SubwordTextEncoder.build_from_corpus(corpus_en, target_vocab_size=2**13)
